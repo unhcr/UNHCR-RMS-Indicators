@@ -141,7 +141,7 @@ main <- main %>%
                              TRUE ~ 1) # in the dwelling/yard/plot
   ) %>% 
   mutate(drinkingwater=case_when(
-    (dwa_cond1=="1" & dwa_cond2=="1" & dwa_cond3=="1") ~ 1, TRUE ~ 0)
+    ((dwa_cond1==1 | dwa_cond3==1) & dwa_cond2==1 ) ~ 1, TRUE ~ 0)
   ) %>%
   mutate(drinkingwater = labelled(drinkingwater,
                                   labels = c(
@@ -343,35 +343,32 @@ main$EDU02 <- labelled_chr2dbl(main$EDU02)
 main$EDU03 <- labelled_chr2dbl(main$EDU03)
 
 
-main <- main %>%
-  mutate(edu_primary=case_when(
-    EDU01==1 & EDU02==1 & EDU03==2 ~ 1, EDU01==0 | EDU02==0 ~ 0, TRUE ~ 0)
+
+
+main <- main %>% 
+  mutate(edu_primary = case_when
+         ( EDU01 == 1 & EDU02 == 1 & EDU03 == 2 ~ 1, EDU01 == 0 | EDU02 == 0 ~ 0, 
+           TRUE ~ 0) 
   ) %>%
-  mutate(age_primary=case_when(
-    HH07 >= 6 & HH07 <=10 ~ 1, TRUE ~ NA_real_) #Adjust age group for primary school  enrollment 
-  ) %>%
-  mutate(impact3_2a=sum(edu_primary)/sum(age_primary)
-  ) %>%
-  mutate(impact3_2a=labelled(impact3_2a,
-                             labels =c(
-                               "Yes"=1,
-                               "No"=0
-                             ),
-                             label="Proportion of children and young people enrolled in primary education"))
+  mutate(age_primary = case_when
+         ( name_selectedchild_edu_calcul_nc_age >= 6 & name_selectedchild_edu_calcul_nc_age <=13 ~ 1, ####adjust age groups per country
+           
+           TRUE ~ 0) )
+###!!!!!ADJUST AGE GROUPS FOR EACH EDUCATIONAL LEVEL
+
+main %>% filter(!is.na(pop_groups)) %>% group_by(pop_groups) %>% # filter(!is.na(age_primary)) %>% 
+  summarise(age_primary_total = sum(age_primary), edu_primary_total = sum(edu_primary)) %>% 
+  mutate(impact3_2a = round(edu_primary_total/age_primary_total, 4))
+
 
 
 ##Count and chart
 
-mean(main$impact3_2a)
-table(main$impact3_2a)
+table(main$edu_primary, useNA = "always")
+table(main$age_primary, useNA = "always")
 
-ggplot(main, aes(x = factor(impact3_2a), fill = factor(impact3_2a))) +
-  geom_bar(stat = "count", position = "stack", show.legend = FALSE) +
-  labs(title = "Proportion of children and young people enrolled in primary education",
-       x = "Enrollment in Primary Education",
-       y = "Count") +
-  scale_x_discrete(labels = c("No" = 0, "Yes" = 1)) +
-  theme_minimal()
+
+
 
 
 ###3.2b: Proportion of children and young people enrolled in secondary education
@@ -389,35 +386,25 @@ main <- main %>%
     TRUE ~ 0)
   ) %>%
   mutate(age_secondary=case_when(
-    HH07 >= 11 & HH07 <=18 ~ 1, TRUE ~ NA_real_)
-    
+    name_selectedchild_edu_calcul_nc_age >= 11 & name_selectedchild_edu_calcul_nc_age <=18 ~ 1,
+    TRUE ~ NA_real_)
+  )
+###!!!!!ADJUST AGE GROUPS FOR EACH EDUCATIONAL LEVEL   
     #Adjust age group for secondary school enrollment 
     ##calculated as 11 to 18 above 
-  ) %>%
-  mutate(impact3_2b=sum(edu_secondary)/sum(age_secondary)
-  ) %>%
-  mutate(impact3_2b=labelled(impact3_2b,
-                             labels =c(
-                               "Yes"=1,
-                               "No"=0
-                             ),
-                             label="Proportion of children and young people enrolled in secondary education"))
+  
+main %>% filter(!is.na(pop_groups)) %>% group_by(pop_groups) %>% 
+  summarise(age_secondary_total = sum(age_secondary), edu_secondary_total = sum(edu_secondary)) %>% 
+  mutate(impact3_2b = round(edu_secondary_total/age_secondary_total, 4))
 
 
-##Count and mean
 
-mean(main$impact3_2a)
-table(main$impact3_2a)
+##Count 
 
-##Chart
+table(main$edu_secondary, useNA = "always")
+table(main$age_secondary, useNA = "always")
 
-ggplot(main, aes(x = factor(impact3_2b), fill = factor(impact3_2a))) +
-  geom_bar(stat = "count", position = "stack", show.legend = FALSE) +
-  labs(title = "Proportion of Persons Enrolled in Secondary Education",
-       x = "Enrollment in Primary Education",
-       y = "Count") +
-  scale_x_discrete(labels = c("No" = 0, "Yes" = 1)) +
-  theme_minimal()
+
 
 ###3.3 Proportion of people that feel safe walking alone in their neighbourhood after dark
 ##Module :SAF01
@@ -513,9 +500,9 @@ main <- main %>%
 main <- main %>%
   mutate(outcome1_2=case_when(
     (birthRegistered==1 | birthCertificate==1) 
-    & HH07 <5 ~ 1, 
+    ~ 1, 
     (birthRegistered==0 & birthCertificate==0) 
-    & HH07 <5 ~ 0)
+   ~ 0)
   ) %>%
   mutate(outcome1_2=labelled(outcome1_2,
                              labels=c(
@@ -716,59 +703,6 @@ ggplot(main, aes(x = factor(outcome4_1), fill = factor(outcome4_1))) +
 
 
 
-###4.2 Proportion of people who do not accept violence against women
-##Module :VAW01
-
-#Turn into numeric variables
-main$VAW01a <- labelled_chr2dbl(main$VAW01a)
-main$VAW01b <- labelled_chr2dbl(main$VAW01b)
-main$VAW01c <- labelled_chr2dbl(main$VAW01c)
-main$VAW01d <- labelled_chr2dbl(main$VAW01d)
-main$VAW01e <- labelled_chr2dbl(main$VAW01e)
-
-##This indicator comes from main dataset based on the respondent randomly selected for individual level
-
-#If randomly selected adult who believes that a  husband is justified in beating his wife in various circumstances
-
-##If yes selected for any of the circumstances
-###Prefer not to respond will be put into missing
-main <- main %>%
-  mutate(outcome4_2=case_when(
-    VAW01a==1 | VAW01b==1 |  VAW01c==1 |  VAW01d==1 | VAW01e==1 ~ 0,
-    VAW01a==0 & VAW01b==0 &  VAW01c==0 &  VAW01d==0 & VAW01e==0 ~ 1,
-    TRUE ~ NA_real_)
-  ) %>%
-  mutate(outcome4_2=labelled(outcome4_2,
-                             labels=c(
-                               'Yes'=1,
-                               "No"=0
-                             ),
-                             label="Proportion of people who do not accept violence against women"
-  ))
-
-##Descriptives
-
-#count
-table(main$outcome4_2)
-
-##Percentages
-
-table_outcome4_2 <- table(main$outcome4_2, main$HH04)
-percentage_outcome4_2 <- prop.table(table_outcome4_2, margin = 2) * 100
-
-percentage_outcome4_2
-
-
-
-##Chart
-
-ggplot(main, aes(x = factor(outcome4_2), fill = factor(outcome4_2))) +
-  geom_bar(stat = "count", position = "stack", show.legend = FALSE) +
-  labs(title = "Proportion of people who do not accept violence against women",
-       x = "Does not accept violence against women",
-       y = "Count") +
-  scale_x_discrete(labels = c("No" = 0, "Yes" = 1)) +
-  theme_minimal()
 
 
 
@@ -1172,8 +1106,7 @@ ggplot(main, aes(x = factor(outcome10_2), fill = factor(outcome10_2))) +
 ###12.1 Proportion of people using at least basic drinking water services
 ##Module :DWA01-DWA03
 
-
-#Turn into numeric
+##Turn into numeric
 
 
 main$DWA01 <- labelled_chr2dbl(main$DWA01)
@@ -1182,7 +1115,7 @@ main$DWA03a <-labelled_chr2dbl(main$DWA03a)
 main$DWA03b <-labelled_chr2dbl(main$DWA03b)
 
 ###There are three conditions as below 
-##improved source, in dwelling/yard/plot or reachable under 30 minutes 
+##improved source, in dwelling/yard/plot and reachable under 30 minutes 
 
 main <- main %>%
   mutate(time_DWA=case_when(
@@ -1202,13 +1135,12 @@ main <- main %>%
   mutate(outcome12_1=case_when(
     ((dwa_cond1==1 | dwa_cond3==1) & dwa_cond2==1 ) ~ 1, TRUE ~ 0)
   ) %>%
-  mutate(outcome12_1 = labelled(outcome12_1,
+  mutate(outcome12_1 = labelled(drinkingwater,
                                 labels = c(
                                   "Yes" = 1,
                                   "No" = 0
                                 ),
                                 label = "Proportion of people using at least basic drinking water services"))
-  
 
 ##Descriptives
 
@@ -1467,6 +1399,7 @@ main$UNEM08 <- labelled_chr2dbl(main$UNEM08)
 main$UNEM09 <- labelled_chr2dbl(main$UNEM09)
 main$UNEM10 <- labelled_chr2dbl(main$UNEM10)
 
+
 main <- main %>%
   mutate(employed = case_when(
     UNEM01 == 1 ~ 1,
@@ -1479,12 +1412,13 @@ main <- main %>%
   )) %>%
   mutate(outcome13_3 = case_when(
     employed == 0 & UNEM09 == 1 & UNEM10 == 1 ~ 1,
-    employed == 1 ~ 0,
-    TRUE ~ NA
+    TRUE ~ 0
   )) %>%
   mutate(outcome13_3 = factor(outcome13_3,
                               levels = c(0, 1),
                               labels = c("No", "Yes"))
+  )
+
 table(main$employed)
 
 
@@ -1731,5 +1665,4 @@ ggplot(main, aes(x = factor(outcome16_1), fill = factor(outcome16_1))) +
   scale_x_discrete(labels = c("No" = 0, "Yes" = 1)) +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentages
   theme_minimal()
-
 
