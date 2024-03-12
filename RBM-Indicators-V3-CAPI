@@ -8,7 +8,7 @@
 
 ##At this step, you should already have main and ind datasets 
 ###structured in a way that will allow you to calculate your indicators as you will be guided in this document
-###It's not recommended to clear your work space if you have your main and ind datasets loaded
+###It's not recommended to clear your work space
 
 #### Load packages ( if you have not already in the first step)
 
@@ -141,7 +141,7 @@ main <- main %>%
                              TRUE ~ 1) # in the dwelling/yard/plot
   ) %>% 
   mutate(drinkingwater=case_when(
-    ((dwa_cond1==1 | dwa_cond3==1) & dwa_cond2==1 ) ~ 1, TRUE ~ 0)
+    ((dwa_cond1==1 | dwa_cond3==1) & dwa_cond2==1 ) ~ 1, TRUE ~ 0) 
   ) %>%
   mutate(drinkingwater = labelled(drinkingwater,
                                   labels = c(
@@ -343,35 +343,28 @@ ind$EDU02 <- labelled_chr2dbl(ind$EDU02)
 ind$EDU03 <- labelled_chr2dbl(ind$EDU03)
 
 
-ind<- ind %>%
-  mutate(edu_primary=case_when(
-    EDU01==1 & EDU02==1 & EDU03==2 ~ 1, EDU01==0 | EDU02==0 ~ 0, TRUE ~ 0)
+
+ind <- ind %>% 
+  mutate(edu_primary = case_when
+         ( EDU01 == 1 & EDU02 == 1 & EDU03 == 2 ~ 1, EDU01 == 0 | EDU02 == 0 ~ 0, 
+           TRUE ~ 0) 
   ) %>%
-  mutate(age_primary=case_when(
-    HH07 >= 6 & HH07 <=10 ~ 1, TRUE ~ 0) #Adjust age group for primary school  enrollment 
-  ) %>%
-  mutate(impact3_2a=sum(edu_primary)/sum(age_primary)
-  ) %>%
-  mutate(impact3_2a=labelled(impact3_2a,
-                             labels =c(
-                               "Yes"=1,
-                               "No"=0
-                             ),
-                             label="Proportion of children and young people enrolled in primary education"))
+  mutate(age_primary = case_when
+         ( HH07 >= 6 & HH07 <=13 ~ 1, 
+           TRUE ~ 0) )
+###!!!!!ADJUST AGE GROUPS FOR EACH EDUCATIONAL LEVEL
 
 
-##Count and chart
+#Count 
+ind %>% filter(!is.na(pop_groups)) %>% group_by(pop_groups) %>% 
+  summarise(age_primary_total = sum(age_primary), edu_primary_total = sum(edu_primary)) %>% 
+  mutate(impact3_2a = round(edu_primary_total/age_primary_total, 4))
 
-mean(ind$impact3_2a)
-table(ind$impact3_2a)
 
-ggplot(ind, aes(x = factor(impact3_2a), fill = factor(impact3_2a))) +
-  geom_bar(stat = "count", position = "stack", show.legend = FALSE) +
-  labs(title = "Proportion of children and young people enrolled in primary education",
-       x = "Enrollment in Primary Education",
-       y = "Count") +
-  scale_x_discrete(labels = c("No" = 0, "Yes" = 1)) +
-  theme_minimal()
+
+table(ind$edu_primary, useNA = "always")
+table(ind$age_primary, useNA = "always")
+
 
 
 ###3.2b: Proportion of children and young people enrolled in secondary education
@@ -389,35 +382,23 @@ ind <- ind %>%
     TRUE ~ 0)
   ) %>%
   mutate(age_secondary=case_when(
-    HH07 >= 11 & HH07 <=18 ~ 1, TRUE ~ 0)
+    HH07 >= 11 & HH07 <=18 ~ 1, TRUE ~ NA_real_))
+
+###!!!!!ADJUST AGE GROUPS FOR EACH EDUCATIONAL LEVEL   
+  
+ind %>% filter(!is.na(pop_groups)) %>% group_by(pop_groups) %>% 
+      summarise(age_secondary_total = sum(age_secondary), edu_secondary_total = sum(edu_secondary)) %>% 
+      mutate(impact3_2b = round(edu_secondary_total/age_secondary_total, 4))
     
-    #Adjust age group for secondary school enrollment 
-    ##calculated as 11 to 18 above 
-  ) %>%
-  mutate(impact3_2b=sum(edu_secondary)/sum(age_secondary)
-  ) %>%
-  mutate(impact3_2b=labelled(impact3_2b,
-                             labels =c(
-                               "Yes"=1,
-                               "No"=0
-                             ),
-                             label="Proportion of children and young people enrolled in secondary education"))
+    
+    
+##Count 
+    
+table(ind$edu_secondary, useNA = "always")
+table(ind$age_secondary, useNA = "always")
+    
+    
 
-
-##Count and mean
-
-mean(ind$impact3_2a)
-table(ind$impact3_2a)
-
-##Chart
-
-ggplot(ind, aes(x = factor(impact3_2b), fill = factor(impact3_2a))) +
-  geom_bar(stat = "count", position = "stack", show.legend = FALSE) +
-  labs(title = "Proportion of Persons Enrolled in Secondary Education",
-       x = "Enrollment in Primary Education",
-       y = "Count") +
-  scale_x_discrete(labels = c("No" = 0, "Yes" = 1)) +
-  theme_minimal()
 
 ###3.3 Proportion of people that feel safe walking alone in their neighbourhood after dark
 ##Module :SAF01
@@ -1172,7 +1153,7 @@ ggplot(main, aes(x = factor(outcome10_2), fill = factor(outcome10_2))) +
 ###12.1 Proportion of people using at least basic drinking water services
 ##Module :DWA01-DWA03
 
-#Turn into numeric
+##Turn into numeric
 
 
 main$DWA01 <- labelled_chr2dbl(main$DWA01)
@@ -1181,7 +1162,7 @@ main$DWA03a <-labelled_chr2dbl(main$DWA03a)
 main$DWA03b <-labelled_chr2dbl(main$DWA03b)
 
 ###There are three conditions as below 
-##improved source, in dwelling/yard/plot or reachable under 30 minutes 
+##improved source, in dwelling/yard/plot and reachable under 30 minutes 
 
 main <- main %>%
   mutate(time_DWA=case_when(
@@ -1201,13 +1182,12 @@ main <- main %>%
   mutate(outcome12_1=case_when(
     ((dwa_cond1==1 | dwa_cond3==1) & dwa_cond2==1 ) ~ 1, TRUE ~ 0)
   ) %>%
-  mutate(outcome12_1 = labelled(outcome12_1,
+  mutate(outcome12_1 = labelled(drinkingwater,
                                 labels = c(
                                   "Yes" = 1,
                                   "No" = 0
                                 ),
                                 label = "Proportion of people using at least basic drinking water services"))
-  
 
 ##Descriptives
 
@@ -1479,12 +1459,14 @@ main <- main %>%
   )) %>%
   mutate(outcome13_3 = case_when(
     employed == 0 & UNEM09 == 1 & UNEM10 == 1 ~ 1,
-    employed == 1 ~ 0,
-    TRUE ~ NA
+    TRUE ~ 0
   )) %>%
   mutate(outcome13_3 = factor(outcome13_3,
                               levels = c(0, 1),
                               labels = c("No", "Yes"))
+  )
+
+table(main$employed)
 
 
 ##Descriptives
