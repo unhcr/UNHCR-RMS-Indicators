@@ -1,3 +1,6 @@
+# IMPORTANT: We are switching UNHCR's GitHub repository to free tier #
+# Please contact thanos @ unhcr.org for info #
+
 # UNHCR-RMS-Indicators
 Here is the standard indicator calculations for RMS which is done based on CAPI v2 RMS,CATI and CAPI V3.
 
